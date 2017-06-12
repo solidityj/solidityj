@@ -1,9 +1,12 @@
 package org.solidityj
 
+import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
 import java.util.*
 
 class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
+
+    private var contractName: String? = null
 
     override fun visitEnumDefinition(ctx: SolidityParser.EnumDefinitionContext?): ASTNode {
         val name = ctx!!.Identifier().text
@@ -50,7 +53,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
     override fun visitMapping(ctx: SolidityParser.MappingContext?): ASTNode {
         val keyType = visit(ctx!!.elementaryTypeName()) as ElementaryTypeName
-        val valueType = visit(ctx!!.typeName()) as TypeName
+        val valueType = visit(ctx.typeName()) as TypeName
         return Mapping(keyType, valueType)
     }
 
@@ -114,10 +117,10 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
     override fun visitParameterList(ctx: SolidityParser.ParameterListContext?): ASTNode {
         val len = ctx!!.typeName().size
-        val parameters = (1..len).map {
+        val parameters = (0 until len).map {
             val type = visit(ctx.typeName(it)) as TypeName
             val name = ctx.Identifier(it).text
-            return VariableDeclaration(type, name, null)
+            VariableDeclaration(type, name, null)
         }
 
         return ParameterList(parameters)
@@ -140,10 +143,14 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
     override fun visitContractDefinition(ctx: SolidityParser.ContractDefinitionContext?): ASTNode {
         val name = ctx!!.Identifier().text
+        this.contractName = name
+
         val baseContracts = ctx.inheritanceSpecifier().map {
             visitInheritanceSpecifier(it) as InheritanceSpecifier }
         val subNodes = ctx.contractPart().map { visitContractPart(it) }
         val isLibrary = ctx.getChild(0).text == "library"
+
+        this.contractName = null
 
         return ContractDefinition(name, baseContracts, subNodes, isLibrary)
     }
@@ -158,7 +165,19 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     }
 
     override fun visitElementaryTypeName(ctx: SolidityParser.ElementaryTypeNameContext?): ASTNode {
-        return ElementaryTypeName(ctx!!.text)
+        when (ctx!!.text) {
+            "int" -> return ElementaryTypes.INT
+            "uint" -> return ElementaryTypes.UINT
+            "bytes" -> return ElementaryTypes.BYTES
+            "byte" -> return ElementaryTypes.BYTE
+            "string" -> return ElementaryTypes.STRING
+            "address" -> return ElementaryTypes.ADDRESS
+            "bool" -> return ElementaryTypes.BOOL
+            "fixed" -> return ElementaryTypes.FIXED
+            "ufixed" -> return ElementaryTypes.UFIXED
+            "var" -> return TypeName.VAR
+        }
+        throw RuntimeException("variable size elementary types not supported")
     }
 
     override fun visitInlineAssemblyStatement(ctx: SolidityParser.InlineAssemblyStatementContext?): ASTNode {
@@ -309,6 +328,46 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         return Throw()
     }
 
+    private fun isReturnsToken(ctx: ParseTree): Boolean {
+        return ctx is TerminalNodeImpl && ctx.text == "returns"
+    }
+
+    private fun parseReturnParameters(ctx: SolidityParser.FunctionDefinitionContext): ParameterList {
+        var foundReturn = false
+        for (child in ctx.children) {
+            if (!foundReturn && isReturnsToken(child)) {
+                foundReturn = true
+                continue
+            }
+            if (foundReturn) {
+                return visit(child) as ParameterList
+            }
+        }
+        return ParameterList(ArrayList())
+    }
+
+    private fun parseModifierInvocations(ctx: SolidityParser.FunctionDefinitionContext): List<ModifierInvocation> {
+        val nonModifiers = listOf("constant", "payable", "returns", "private", "public", "internal", "external")
+        var modifiers = ArrayList<ModifierInvocation>()
+
+        for (child in ctx.children.subList(3, ctx.childCount)) {
+            if (child is TerminalNodeImpl && !(nonModifiers.contains(child.text))) {
+                modifiers.add(ModifierInvocation(child.text, ArrayList()))
+                continue
+            }
+            if (child is SolidityParser.FunctionCallContext) {
+                modifiers.add(parseModifierInvocation(child))
+                continue
+            }
+        }
+        return modifiers
+    }
+
+    private fun parseModifierInvocation(ctx: SolidityParser.FunctionCallContext): ModifierInvocation {
+        var functionCall = visit(ctx) as FunctionCall
+        return ModifierInvocation(functionCall.names[0], functionCall.arguments)
+    }
+
     override fun visitFunctionDefinition(ctx: SolidityParser.FunctionDefinitionContext?): ASTNode {
         val name = ctx!!.Identifier(0)?.text ?: ""
 
@@ -319,14 +378,35 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
             body = null
         }
 
-        val visibility = Visibility.Default
-        val returnParameters = ParameterList(ArrayList())
-        val parameters = ParameterList(ArrayList())
-        val modifiers = ArrayList<ModifierInvocation>()
-        val isConstructor = false
-        val isDeclaredConst = false
-        val isPayable = false
+        val visibility = parseVisibility(ctx)
+        var returnParameters = parseReturnParameters(ctx)
+        val parameters = visit(ctx.parameterList(0)) as ParameterList
+        val modifiers = parseModifierInvocations(ctx)
+        val isConstructor = name == this.contractName
+        val isDeclaredConst = hasSpecifier(ctx, "constant")
+        val isPayable = hasSpecifier(ctx, "payable")
         return FunctionDefinition(name, visibility, returnParameters, parameters, modifiers, body, isConstructor , isDeclaredConst, isPayable)
+    }
+
+    private fun parseVisibility(ctx: SolidityParser.FunctionDefinitionContext): Visibility {
+        for (child in ctx.children.subList(3, ctx.childCount)) {
+            when (child.text) {
+                "internal" -> return Visibility.Internal
+                "external" -> return Visibility.External
+                "public" -> return Visibility.Public
+                "private" -> return Visibility.Private
+            }
+        }
+        return Visibility.Default
+    }
+
+    private fun hasSpecifier(ctx: SolidityParser.FunctionDefinitionContext, specifier: String): Boolean {
+        for (child in ctx.children) {
+            if (child is TerminalNodeImpl && child.text == specifier) {
+                return true
+            }
+        }
+        return false
     }
 
     override fun visitForStatement(ctx: SolidityParser.ForStatementContext?): ASTNode {

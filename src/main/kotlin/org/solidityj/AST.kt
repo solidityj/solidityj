@@ -165,7 +165,43 @@ open class TypeName : ASTNode() {
     object VAR : TypeName()
 }
 
-class ElementaryTypeName(val name: String) : TypeName()
+class ElementaryTypeName(
+    val type: String,
+    val firstNumber: Int? = null,
+    val secondNumber: Int? = null
+) : TypeName() {
+    override fun toString(): String {
+        var str = type
+        if (firstNumber != null) {
+            str += firstNumber
+        }
+        if (secondNumber != null) {
+            str += "x" + secondNumber
+        }
+        return str
+    }
+
+}
+
+object ElementaryTypes {
+
+    val INT = ElementaryTypeName("int")
+    val UINT = ElementaryTypeName("uint")
+    val BYTES = ElementaryTypeName("bytes")
+    val BYTE = ElementaryTypeName("byte")
+    val STRING = ElementaryTypeName("string")
+    val ADDRESS = ElementaryTypeName("address")
+    val BOOL = ElementaryTypeName("bool")
+    val FIXED = ElementaryTypeName("fixed")
+    val UFIXED = ElementaryTypeName("ufixed")
+
+    fun intMTypeName(m: Int): ElementaryTypeName { return ElementaryTypeName("int", m) }
+    fun uintMTypeName(m: Int): ElementaryTypeName { return ElementaryTypeName("uint", m) }
+    fun bytesMTypeName(m: Int): ElementaryTypeName { return ElementaryTypeName("bytes", m) }
+    fun fixedMxNTypeName(m: Int, n: Int): ElementaryTypeName { return ElementaryTypeName("uint", m, n) }
+    fun ufixedMxNTypeName(m: Int, n: Int): ElementaryTypeName { return ElementaryTypeName("uint", m, n) }
+}
+
 
 class UserDefinedTypeName(val namePath: String) : TypeName()
 
