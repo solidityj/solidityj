@@ -1,5 +1,7 @@
 package org.solidityj
 
+import org.antlr.v4.runtime.ANTLRInputStream
+import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
 import java.util.*
@@ -494,3 +496,13 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     }
 }
 
+
+fun parseCode(string: String): ASTNode {
+    val input = ANTLRInputStream(string)
+    val lexer = SolidityLexer(input)
+    val tokens = CommonTokenStream(lexer)
+    val parser = SolidityParser(tokens)
+    val builder = ASTBuilder()
+
+    return builder.visit(parser.sourceUnit())
+}

@@ -1,18 +1,6 @@
 package org.solidityj
 
-import org.antlr.v4.runtime.ANTLRInputStream
-import org.antlr.v4.runtime.CommonTokenStream
 import org.junit.jupiter.api.Test
-
-fun parseCode(string: String): ASTNode {
-    val input = ANTLRInputStream(string)
-    val lexer = SolidityLexer(input)
-    val tokens = CommonTokenStream(lexer)
-    val parser = SolidityParser(tokens)
-    val builder = ASTBuilder()
-
-    return builder.visit(parser.sourceUnit())
-}
 
 class ASTBuilderIntegrationTests {
 

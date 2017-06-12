@@ -9,6 +9,14 @@ applications on top of it.
 
 Interested? Get in touch at federicobond@gmail.com
 
+## Example (in Kotlin)
+
+    import org.solidityj.parseCode
+
+    fun process(str: String) {
+      val ast = parseCode(str)
+    }
+
 ## To Do
 
  * Finish AST building from ANTLR parse tree
