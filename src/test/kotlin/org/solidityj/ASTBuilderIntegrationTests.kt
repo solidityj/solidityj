@@ -1,6 +1,9 @@
 package org.solidityj
 
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ASTBuilderIntegrationTests {
 
@@ -48,7 +51,54 @@ class ASTBuilderIntegrationTests {
             }
         """
 
-        parseCode(sourceCode)
+        var ast = parseCode(sourceCode)
 
+        assertTrue(ast is SourceUnit)
+
+        if (ast !is SourceUnit) { throw RuntimeException("should not reach here") }
+
+        assertTrue(ast.nodes.size == 1)
+        assertTrue(ast.nodes[0] is ContractDefinition)
+
+        val contract = ast.nodes[0] as ContractDefinition
+
+        assertEquals("ERC20", contract.baseContracts[0].baseName.namePath)
+        assertEquals(0, contract.baseContracts[0].arguments.size)
+        assertEquals("SafeMath", contract.baseContracts[1].baseName.namePath)
+        assertEquals(0, contract.baseContracts[1].arguments.size)
+
+        assertFalse(contract.isLibrary)
+        assertEquals("StandardToken", contract.name)
+        assertEquals(Visibility.Default, contract.visibility) // @TODO: does this apply?
+
+        assertEquals(7, contract.subNodes.size)
+        assertTrue(contract.subNodes[0] is VariableDeclarationStatement)
+
+        val varDecl = contract.subNodes[0] as VariableDeclarationStatement
+
+        assertTrue(varDecl.variables[0] is VariableDeclaration)
+        assertEquals(Visibility.Default, varDecl.variables[0].visibility)
+        assertFalse(varDecl.variables[0].isConstant)
+        assertTrue(varDecl.variables[0].isStateVar)
+        assertTrue(varDecl.variables[0].type is Mapping)
+
+        assertTrue(varDecl.variables[0].type is Mapping)
+        var mapping = varDecl.variables[0].type as Mapping
+        assertEquals(ElementaryTypes.ADDRESS, mapping.keyType)
+        assertEquals(ElementaryTypes.UINT, mapping.valueType)
+
+        assertTrue(contract.subNodes[1] is VariableDeclarationStatement)
+        assertTrue(contract.subNodes[2] is FunctionDefinition)
+
+        val funcDef = contract.subNodes[2] as FunctionDefinition
+        assertEquals("transfer", funcDef.name)
+        assertFalse(funcDef.isConstructor)
+        assertFalse(funcDef.isDeclaredConst)
+        assertFalse(funcDef.isPayable)
+
+        assertTrue(contract.subNodes[3] is FunctionDefinition)
+        assertTrue(contract.subNodes[4] is FunctionDefinition)
+        assertTrue(contract.subNodes[5] is FunctionDefinition)
+        assertTrue(contract.subNodes[6] is FunctionDefinition)
     }
 }
