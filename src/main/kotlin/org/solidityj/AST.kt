@@ -406,7 +406,14 @@ class ElementaryTypeNameExpression(val type: ElementaryTypeName) : PrimaryExpres
 }
 
 enum class Subdenomination {
-    None, Wei, Szabo, Finney, Ether, Second, Minute, Hour, Day, Week, Year
+    None, Wei, Szabo, Finney, Ether, Second, Minute, Hour, Day, Week, Year;
+
+    companion object {
+        fun fromToken(token: String): Subdenomination {
+            return Subdenomination.values().find { it.toString().toLowerCase() == token }
+                    ?: throw IllegalArgumentException("invalid subdenomination")
+        }
+    }
 }
 
 open class Literal : PrimaryExpression()

@@ -350,7 +350,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
     private fun parseModifierInvocations(ctx: SolidityParser.FunctionDefinitionContext): List<ModifierInvocation> {
         val nonModifiers = listOf("constant", "payable", "returns", "private", "public", "internal", "external")
-        var modifiers = ArrayList<ModifierInvocation>()
+        val modifiers = ArrayList<ModifierInvocation>()
 
         for (child in ctx.children.subList(3, ctx.childCount)) {
             if (child is TerminalNodeImpl && !(nonModifiers.contains(child.text))) {
@@ -366,7 +366,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     }
 
     private fun parseModifierInvocation(ctx: SolidityParser.FunctionCallContext): ModifierInvocation {
-        var functionCall = visit(ctx) as FunctionCall
+        val functionCall = visit(ctx) as FunctionCall
         return ModifierInvocation(functionCall.names[0], functionCall.arguments)
     }
 
@@ -381,7 +381,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         }
 
         val visibility = parseVisibility(ctx)
-        var returnParameters = parseReturnParameters(ctx)
+        val returnParameters = parseReturnParameters(ctx)
         val parameters = visit(ctx.parameterList(0)) as ParameterList
         val modifiers = parseModifierInvocations(ctx)
         val isConstructor = name == this.contractName
@@ -403,12 +403,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     }
 
     private fun hasSpecifier(ctx: SolidityParser.FunctionDefinitionContext, specifier: String): Boolean {
-        for (child in ctx.children) {
-            if (child is TerminalNodeImpl && child.text == specifier) {
-                return true
-            }
-        }
-        return false
+        return ctx.children.any { it is TerminalNodeImpl && it.text == specifier }
     }
 
     override fun visitForStatement(ctx: SolidityParser.ForStatementContext?): ASTNode {
@@ -491,8 +486,13 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     }
 
     override fun visitNumberLiteral(ctx: SolidityParser.NumberLiteralContext?): ASTNode {
+        var number = ctx!!.getChild(0).text
+        var subdenomination = Subdenomination.None
+        if (ctx.childCount == 2) {
+            subdenomination = Subdenomination.fromToken(ctx.getChild(1).text)
+        }
         // @TODO: fix subdenomination
-        return NumberLiteral(ctx!!.text, Subdenomination.None)
+        return NumberLiteral(number, subdenomination)
     }
 }
 
