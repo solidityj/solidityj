@@ -2,6 +2,7 @@ package org.solidityj
 
 import org.antlr.v4.runtime.ANTLRInputStream
 import org.antlr.v4.runtime.CommonTokenStream
+import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
 import java.util.*
@@ -380,7 +381,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
             body = null
         }
 
-        val visibility = parseVisibility(ctx)
+        val visibility = parseFunctionVisibility(ctx)
         val returnParameters = parseReturnParameters(ctx)
         val parameters = visit(ctx.parameterList(0)) as ParameterList
         val modifiers = parseModifierInvocations(ctx)
@@ -390,7 +391,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         return FunctionDefinition(name, visibility, returnParameters, parameters, modifiers, body, isConstructor , isDeclaredConst, isPayable)
     }
 
-    private fun parseVisibility(ctx: SolidityParser.FunctionDefinitionContext): Visibility {
+    private fun parseFunctionVisibility(ctx: SolidityParser.FunctionDefinitionContext): Visibility {
         for (child in ctx.children.subList(3, ctx.childCount)) {
             when (child.text) {
                 "internal" -> return Visibility.Internal
@@ -402,7 +403,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         return Visibility.Default
     }
 
-    private fun hasSpecifier(ctx: SolidityParser.FunctionDefinitionContext, specifier: String): Boolean {
+    private fun hasSpecifier(ctx: ParserRuleContext, specifier: String): Boolean {
         return ctx.children.any { it is TerminalNodeImpl && it.text == specifier }
     }
 
@@ -419,16 +420,27 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         return Break()
     }
 
+    private fun parseStateVariableVisibility(ctx: SolidityParser.StateVariableDeclarationContext): Visibility {
+        for (child in ctx.children) {
+            when (child.text) {
+                "internal" -> return Visibility.Internal
+                "public" -> return Visibility.Public
+                "private" -> return Visibility.Private
+            }
+        }
+        return Visibility.Default
+    }
+
     override fun visitStateVariableDeclaration(ctx: SolidityParser.StateVariableDeclarationContext?): ASTNode {
         val type = visit(ctx!!.typeName()) as TypeName
         val name = ctx.Identifier().text
         val expression = if (ctx.expression() != null) visit(ctx.expression()) as Expression else null
-        // @TODO: fix visibility, constant, indexed
+
         val decl = VariableDeclaration(
                 type, name, expression,
-                visibility = Visibility.Default,
+                visibility = parseStateVariableVisibility(ctx),
                 isStateVar = true,
-                isConstant = false,
+                isConstant = hasSpecifier(ctx, "constant"),
                 isIndexed = false
         )
 
@@ -491,7 +503,6 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         if (ctx.childCount == 2) {
             subdenomination = Subdenomination.fromToken(ctx.getChild(1).text)
         }
-        // @TODO: fix subdenomination
         return NumberLiteral(number, subdenomination)
     }
 }
