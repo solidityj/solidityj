@@ -7,31 +7,37 @@ import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
 import java.util.*
 
-class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
+class ASTBuilder(val sourceName: String = "") : SolidityBaseVisitor<ASTNode>() {
 
     private var contractName: String? = null
+
+    private fun withLocation(ctx: ParserRuleContext, node: ASTNode): ASTNode {
+        val interval = ctx.sourceInterval
+        node.location = SourceLocation(sourceName, interval.a, interval.b)
+        return node
+    }
 
     override fun visitEnumDefinition(ctx: SolidityParser.EnumDefinitionContext?): ASTNode {
         val name = ctx!!.Identifier().text
         val members = ctx.enumValue().map { visit(it) as EnumValue }
 
-        return EnumDefinition(name, members)
+        return withLocation(ctx, EnumDefinition(name, members))
     }
 
     override fun visitUsingForDeclaration(ctx: SolidityParser.UsingForDeclarationContext?): ASTNode {
         val libraryName = UserDefinedTypeName(ctx!!.Identifier().text)
         val typeName = visit(ctx.typeName()) as TypeName
 
-        return UsingForDirective(libraryName, typeName)
+        return withLocation(ctx, UsingForDirective(libraryName, typeName))
     }
 
     override fun visitEnumValue(ctx: SolidityParser.EnumValueContext?): ASTNode {
-        return EnumValue(ctx!!.text)
+        return withLocation(ctx!!, EnumValue(ctx.text))
     }
 
     override fun visitElementaryTypeNameExpression(ctx: SolidityParser.ElementaryTypeNameExpressionContext?): ASTNode {
         val typeName = visit(ctx!!.elementaryTypeName()) as ElementaryTypeName
-        return ElementaryTypeNameExpression(typeName)
+        return withLocation(ctx, ElementaryTypeNameExpression(typeName))
     }
 
     override fun visitAssemblyAssignment(ctx: SolidityParser.AssemblyAssignmentContext?): ASTNode {
@@ -40,24 +46,24 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
     override fun visitBlock(ctx: SolidityParser.BlockContext?): ASTNode {
         val statements = ctx!!.statement().map { visit(it) as Statement }
-        return Block(statements)
+        return withLocation(ctx, Block(statements))
     }
 
     override fun visitExpressionStatement(ctx: SolidityParser.ExpressionStatementContext?): ASTNode {
         val expression = visit(ctx!!.expression()) as Expression
-        return ExpressionStatement(expression)
+        return withLocation(ctx, ExpressionStatement(expression))
     }
 
     override fun visitDoWhileStatement(ctx: SolidityParser.DoWhileStatementContext?): ASTNode {
         val expression = visit(ctx!!.expression()) as Expression
         val body = visit(ctx.statement()) as Statement
-        return WhileStatement(expression, body, true)
+        return withLocation(ctx, WhileStatement(expression, body, true))
     }
 
     override fun visitMapping(ctx: SolidityParser.MappingContext?): ASTNode {
         val keyType = visit(ctx!!.elementaryTypeName()) as ElementaryTypeName
         val valueType = visit(ctx.typeName()) as TypeName
-        return Mapping(keyType, valueType)
+        return withLocation(ctx, Mapping(keyType, valueType))
     }
 
     override fun visitAssemblyLocalBinding(ctx: SolidityParser.AssemblyLocalBindingContext?): ASTNode {
@@ -70,7 +76,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
     override fun visitNewExpression(ctx: SolidityParser.NewExpressionContext?): ASTNode {
         val typeName = visit(ctx!!.typeName()) as TypeName
-        return NewExpression(typeName)
+        return withLocation(ctx, NewExpression(typeName))
     }
 
     override fun visitModifierDefinition(ctx: SolidityParser.ModifierDefinitionContext?): ASTNode {
@@ -78,7 +84,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         val parameters = visit(ctx.parameterList()) as ParameterList
         val body = visit(ctx.block()) as Block
 
-        return ModifierDefinition(name, parameters, body)
+        return withLocation(ctx, ModifierDefinition(name, parameters, body))
     }
 
     override fun visitFunctionTypeName(ctx: SolidityParser.FunctionTypeNameContext?): ASTNode {
@@ -88,7 +94,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     override fun visitInheritanceSpecifier(ctx: SolidityParser.InheritanceSpecifierContext?): ASTNode {
         val baseName = visit(ctx!!.userDefinedTypeName()) as UserDefinedTypeName
         val arguments = ctx.expression().map { visit(it) as Expression }
-        return InheritanceSpecifier(baseName, arguments)
+        return withLocation(ctx, InheritanceSpecifier(baseName, arguments))
     }
 
     override fun visitFunctionCall(ctx: SolidityParser.FunctionCallContext?): ASTNode {
@@ -115,7 +121,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
             arguments = emptyList()
         }
 
-        return FunctionCall(expression, arguments, emptyList())
+        return withLocation(ctx, FunctionCall(expression, arguments, emptyList()))
     }
 
     override fun visitParameterList(ctx: SolidityParser.ParameterListContext?): ASTNode {
@@ -126,7 +132,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
             VariableDeclaration(type, name, null)
         }
 
-        return ParameterList(parameters)
+        return withLocation(ctx, ParameterList(parameters))
     }
 
     override fun visitAssemblyItem(ctx: SolidityParser.AssemblyItemContext?): ASTNode {
@@ -141,7 +147,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         val name = ctx!!.Identifier().text
         val parameters = ParameterList(ArrayList<VariableDeclaration>())
         val isAnonymous = ctx.children.any { it.text == "anonymous" }
-        return EventDefinition(name, parameters, isAnonymous)
+        return withLocation(ctx, EventDefinition(name, parameters, isAnonymous))
     }
 
     override fun visitContractDefinition(ctx: SolidityParser.ContractDefinitionContext?): ASTNode {
@@ -155,12 +161,12 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
         this.contractName = null
 
-        return ContractDefinition(name, baseContracts, subNodes, isLibrary)
+        return withLocation(ctx, ContractDefinition(name, baseContracts, subNodes, isLibrary))
     }
 
     override fun visitArrayLiteral(ctx: SolidityParser.ArrayLiteralContext?): ASTNode {
         val value = ctx!!.expression().map { visit(it) as Expression }
-        return ArrayLiteral(value)
+        return withLocation(ctx, ArrayLiteral(value))
     }
 
     override fun visitTypeName(ctx: SolidityParser.TypeNameContext?): ASTNode {
@@ -168,19 +174,20 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     }
 
     override fun visitElementaryTypeName(ctx: SolidityParser.ElementaryTypeNameContext?): ASTNode {
-        when (ctx!!.text) {
-            "int" -> return ElementaryTypes.INT
-            "uint" -> return ElementaryTypes.UINT
-            "bytes" -> return ElementaryTypes.BYTES
-            "byte" -> return ElementaryTypes.BYTE
-            "string" -> return ElementaryTypes.STRING
-            "address" -> return ElementaryTypes.ADDRESS
-            "bool" -> return ElementaryTypes.BOOL
-            "fixed" -> return ElementaryTypes.FIXED
-            "ufixed" -> return ElementaryTypes.UFIXED
-            "var" -> return TypeName.VAR
+        val type = when (ctx!!.text) {
+            "int" -> ElementaryTypes.INT
+            "uint" -> ElementaryTypes.UINT
+            "bytes" -> ElementaryTypes.BYTES
+            "byte" -> ElementaryTypes.BYTE
+            "string" -> ElementaryTypes.STRING
+            "address" -> ElementaryTypes.ADDRESS
+            "bool" -> ElementaryTypes.BOOL
+            "fixed" -> ElementaryTypes.FIXED
+            "ufixed" -> ElementaryTypes.UFIXED
+            "var" -> TypeName.VAR
+            else -> throw RuntimeException("variable size elementary types not supported")
         }
-        throw RuntimeException("variable size elementary types not supported")
+        return withLocation(ctx, type)
     }
 
     override fun visitInlineAssemblyStatement(ctx: SolidityParser.InlineAssemblyStatementContext?): ASTNode {
@@ -192,7 +199,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         if (ctx!!.expression() != null) {
             expression = visitExpression(ctx.expression()) as Expression
         }
-        return Return(expression)
+        return withLocation(ctx, Return(expression))
     }
 
     override fun visitInlineAssemblyBlock(ctx: SolidityParser.InlineAssemblyBlockContext?): ASTNode {
@@ -207,14 +214,14 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         val name = ctx!!.Identifier().text
         val members = ctx.variableDeclaration().map { visit(it) as VariableDeclaration }
 
-        return StructDefinition(name, members)
+        return withLocation(ctx, StructDefinition(name, members))
     }
 
     override fun visitPragmaDirective(ctx: SolidityParser.PragmaDirectiveContext?): ASTNode {
         val name = ctx!!.pragmaName().Identifier().text
         val value = ctx.pragmaValue().text
 
-        return PragmaDirective(name, value)
+        return withLocation(ctx, PragmaDirective(name, value))
     }
 
     override fun visitStatement(ctx: SolidityParser.StatementContext?): ASTNode {
@@ -234,7 +241,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
         val initialValue = visit(ctx.expression()) as Expression
 
-        return VariableDeclarationStatement(variables, initialValue)
+        return withLocation(ctx, VariableDeclarationStatement(variables, initialValue))
     }
 
     override fun visitImportDeclaration(ctx: SolidityParser.ImportDeclarationContext?): ASTNode {
@@ -243,7 +250,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
     override fun visitImportDirective(ctx: SolidityParser.ImportDirectiveContext?): ASTNode {
         val pathString = ctx!!.StringLiteral().text
-        return ImportDirective(null, pathString.substring(1, pathString.length - 1))
+        return withLocation(ctx, ImportDirective(null, pathString.substring(1, pathString.length - 1)))
     }
 
     override fun visitIndexedParameterList(ctx: SolidityParser.IndexedParameterListContext?): ASTNode {
@@ -251,20 +258,24 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     }
 
     override fun visitPrimaryExpression(ctx: SolidityParser.PrimaryExpressionContext?): ASTNode {
+        val node: ASTNode
+
         if (ctx!!.BooleanLiteral() != null) {
-            return BooleanLiteral(ctx.text == "true")
+            node = BooleanLiteral(ctx.text == "true")
         } else if (ctx.HexLiteral() != null) {
-            return NumberLiteral(ctx.text, Subdenomination.None)
+            node = NumberLiteral(ctx.text, Subdenomination.None)
         } else if (ctx.Identifier() != null) {
-            return Identifier(ctx.text)
+            node = Identifier(ctx.text)
         } else if (ctx.StringLiteral() != null) {
             val value = ctx.text.substring(1, ctx.text.length - 1)
-            return StringLiteral(value)
+            node = StringLiteral(value)
         } else if (ctx.numberLiteral() != null) {
-            return visit(ctx.numberLiteral())
+            node = visit(ctx.numberLiteral())
         } else {
             throw UnsupportedOperationException("not implemented")
         }
+
+        return withLocation(ctx, node)
     }
 
     override fun visitExpression(ctx: SolidityParser.ExpressionContext?): ASTNode {
@@ -274,7 +285,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
             val subExpression = visit(ctx.expression(0)) as Expression
 
             // @TODO: handle more expressions
-            return UnaryOperation(op, subExpression, isPrefix = true)
+            return withLocation(ctx, UnaryOperation(op, subExpression, isPrefix = true))
 
         } else if (ctx.childCount == 3) {
 
@@ -289,7 +300,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
                 val lhs = visit(ctx.expression(0)) as Expression
                 val rhs = visit(ctx.expression(1)) as Expression
 
-                return BinaryOperation(lhs, op, rhs)
+                return withLocation(ctx, BinaryOperation(lhs, op, rhs))
 
             } else if (isAssignmentOperator(ctx.getChild(1).text)) {
                 val op = AssignmentOperator.fromToken(ctx.getChild(1).text)
@@ -297,7 +308,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
                 val lvalue = visit(ctx.expression(0)) as Expression
                 val rvalue = visit(ctx.expression(1)) as Expression
 
-                return Assignment(lvalue, op, rvalue)
+                return withLocation(ctx, Assignment(lvalue, op, rvalue))
             }
 
             throw RuntimeException("unrecognized expression: " + ctx.text)
@@ -309,7 +320,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
                 val base = visit(ctx.expression(0)) as Expression
                 val index = visit(ctx.expression(1)) as Expression
 
-                return IndexAccess(base, index)
+                return withLocation(ctx, IndexAccess(base, index))
             }
 
             throw RuntimeException("unrecognized expression: " + ctx.text)
@@ -328,7 +339,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     }
 
     override fun visitThrowStatement(ctx: SolidityParser.ThrowStatementContext?): ASTNode {
-        return Throw()
+        return withLocation(ctx!!, Throw())
     }
 
     private fun isReturnsToken(ctx: ParseTree): Boolean {
@@ -368,7 +379,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
 
     private fun parseModifierInvocation(ctx: SolidityParser.FunctionCallContext): ModifierInvocation {
         val functionCall = visit(ctx) as FunctionCall
-        return ModifierInvocation(functionCall.names[0], functionCall.arguments)
+        return withLocation(ctx, ModifierInvocation(functionCall.names[0], functionCall.arguments)) as ModifierInvocation
     }
 
     override fun visitFunctionDefinition(ctx: SolidityParser.FunctionDefinitionContext?): ASTNode {
@@ -388,7 +399,18 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         val isConstructor = name == this.contractName
         val isDeclaredConst = hasSpecifier(ctx, "constant")
         val isPayable = hasSpecifier(ctx, "payable")
-        return FunctionDefinition(name, visibility, returnParameters, parameters, modifiers, body, isConstructor , isDeclaredConst, isPayable)
+
+        return withLocation(ctx, FunctionDefinition(
+            name,
+            visibility,
+            returnParameters,
+            parameters,
+            modifiers,
+            body,
+            isConstructor,
+            isDeclaredConst,
+            isPayable
+        ))
     }
 
     private fun parseFunctionVisibility(ctx: SolidityParser.FunctionDefinitionContext): Visibility {
@@ -413,11 +435,11 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         val loopExpression = ExpressionStatement(visit(ctx.expression(1)) as Expression)
         val body = visit(ctx.statement()) as Statement
 
-        return ForStatement(initExpression, conditionExpression, loopExpression, body)
+        return withLocation(ctx, ForStatement(initExpression, conditionExpression, loopExpression, body))
     }
 
     override fun visitBreakStatement(ctx: SolidityParser.BreakStatementContext?): ASTNode {
-        return Break()
+        return withLocation(ctx!!, Break())
     }
 
     private fun parseStateVariableVisibility(ctx: SolidityParser.StateVariableDeclarationContext): Visibility {
@@ -444,7 +466,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
                 isIndexed = false
         )
 
-        return VariableDeclarationStatement(listOf(decl), expression)
+        return withLocation(ctx, VariableDeclarationStatement(listOf(decl), expression))
     }
 
     override fun visitIfStatement(ctx: SolidityParser.IfStatementContext?): ASTNode {
@@ -458,14 +480,14 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
             falseBody = null
         }
 
-        return IfStatement(condition, trueBody, falseBody)
+        return withLocation(ctx, IfStatement(condition, trueBody, falseBody))
     }
 
     override fun visitVariableDeclaration(ctx: SolidityParser.VariableDeclarationContext?): ASTNode {
         val type = visit(ctx!!.typeName()) as TypeName
         val name = ctx.Identifier().text
 
-        return VariableDeclaration(type, name, null, visibility = Visibility.Default)
+        return withLocation(ctx, VariableDeclaration(type, name, null, visibility = Visibility.Default))
     }
 
     override fun visitWhileStatement(ctx: SolidityParser.WhileStatementContext?): ASTNode {
@@ -473,7 +495,7 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
         val body = visitStatement(ctx.statement()) as Statement
         val isDoWhile = ctx.getChild(0).text == "do"
 
-        return WhileStatement(condition, body, isDoWhile)
+        return withLocation(ctx, WhileStatement(condition, body, isDoWhile))
     }
 
     override fun visitSimpleStatement(ctx: SolidityParser.SimpleStatementContext?): ASTNode {
@@ -481,29 +503,29 @@ class ASTBuilder : SolidityBaseVisitor<ASTNode>() {
     }
 
     override fun visitPlaceholderStatement(ctx: SolidityParser.PlaceholderStatementContext?): ASTNode {
-        return PlaceholderStatement()
+        return withLocation(ctx!!, PlaceholderStatement())
     }
 
     override fun visitContinueStatement(ctx: SolidityParser.ContinueStatementContext?): ASTNode {
-        return Continue()
+        return withLocation(ctx!!, Continue())
     }
 
     override fun visitSourceUnit(ctx: SolidityParser.SourceUnitContext?): ASTNode {
         val nodes = ctx!!.children.filter { it !is TerminalNodeImpl }.map { visit(it) }
-        return SourceUnit(nodes)
+        return withLocation(ctx, SourceUnit(nodes))
     }
 
     override fun visitUserDefinedTypeName(ctx: SolidityParser.UserDefinedTypeNameContext?): ASTNode {
-        return UserDefinedTypeName(ctx!!.text)
+        return withLocation(ctx!!, UserDefinedTypeName(ctx.text))
     }
 
     override fun visitNumberLiteral(ctx: SolidityParser.NumberLiteralContext?): ASTNode {
-        var number = ctx!!.getChild(0).text
+        val number = ctx!!.getChild(0).text
         var subdenomination = Subdenomination.None
         if (ctx.childCount == 2) {
             subdenomination = Subdenomination.fromToken(ctx.getChild(1).text)
         }
-        return NumberLiteral(number, subdenomination)
+        return withLocation(ctx, NumberLiteral(number, subdenomination))
     }
 }
 

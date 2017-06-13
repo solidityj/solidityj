@@ -1,6 +1,10 @@
 package org.solidityj
 
+class SourceLocation(val filename: String, val start: Int, val end: Int)
+
 open class ASTNode {
+    var location: SourceLocation? = null
+
     val nodeName: String
         get() = this.javaClass.simpleName
 
