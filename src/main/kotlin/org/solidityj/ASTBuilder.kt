@@ -111,17 +111,32 @@ class ASTBuilder(val sourceName: String = "") : SolidityBaseVisitor<ASTNode>() {
             throw UnsupportedOperationException("not implemented")
         }
 
-        val arguments : List<Expression>
+        val ctxArgs = ctx.functionCallArguments()
 
-        // @TODO: name value pairs too
-        if (ctx.functionCallArguments().expressionList() != null) {
+        val names: List<String>
+        val arguments: List<Expression>
+
+        if (ctxArgs.expressionList() != null) {
+
+            names = emptyList()
             arguments = ctx.functionCallArguments()
                     .expressionList().expression().map { visit(it) as Expression }
+
+        } else if (ctxArgs.nameValueList() != null) {
+
+            names = ArrayList<String>()
+            arguments = ArrayList<Expression>()
+            ctx.functionCallArguments().nameValueList().nameValue().forEach {
+                names.add(it.Identifier().text)
+                arguments.add(visit(it.expression()) as Expression)
+            }
+
         } else {
+            names = emptyList()
             arguments = emptyList()
         }
 
-        return withLocation(ctx, FunctionCall(expression, arguments, emptyList()))
+        return withLocation(ctx, FunctionCall(expression, arguments, names))
     }
 
     override fun visitParameterList(ctx: SolidityParser.ParameterListContext?): ASTNode {
