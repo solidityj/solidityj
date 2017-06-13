@@ -84,8 +84,8 @@ class ASTBuilderIntegrationTests {
 
         assertTrue(varDecl.variables[0].type is Mapping)
         var mapping = varDecl.variables[0].type as Mapping
-        assertEquals(ElementaryTypes.ADDRESS, mapping.keyType)
-        assertEquals(ElementaryTypes.UINT, mapping.valueType)
+        assertEquals(ElementaryTypes.Address, mapping.keyType)
+        assertEquals(ElementaryTypes.Uint, mapping.valueType)
 
         assertTrue(contract.subNodes[1] is VariableDeclarationStatement)
         assertTrue(contract.subNodes[2] is FunctionDefinition)

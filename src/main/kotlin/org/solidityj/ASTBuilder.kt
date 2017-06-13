@@ -175,16 +175,16 @@ class ASTBuilder(val sourceName: String = "") : SolidityBaseVisitor<ASTNode>() {
 
     override fun visitElementaryTypeName(ctx: SolidityParser.ElementaryTypeNameContext?): ASTNode {
         val type = when (ctx!!.text) {
-            "int" -> ElementaryTypes.INT
-            "uint" -> ElementaryTypes.UINT
-            "bytes" -> ElementaryTypes.BYTES
-            "byte" -> ElementaryTypes.BYTE
-            "string" -> ElementaryTypes.STRING
-            "address" -> ElementaryTypes.ADDRESS
-            "bool" -> ElementaryTypes.BOOL
-            "fixed" -> ElementaryTypes.FIXED
-            "ufixed" -> ElementaryTypes.UFIXED
-            "var" -> TypeName.VAR
+            "int" -> ElementaryTypes.Int
+            "uint" -> ElementaryTypes.Uint
+            "bytes" -> ElementaryTypes.Bytes
+            "byte" -> ElementaryTypes.Byte
+            "string" -> ElementaryTypes.String
+            "address" -> ElementaryTypes.Address
+            "bool" -> ElementaryTypes.Bool
+            "fixed" -> ElementaryTypes.Fixed
+            "ufixed" -> ElementaryTypes.Ufixed
+            "var" -> TypeName.Var
             else -> throw RuntimeException("variable size elementary types not supported")
         }
         return withLocation(ctx, type)
@@ -236,7 +236,7 @@ class ASTBuilder(val sourceName: String = "") : SolidityBaseVisitor<ASTNode>() {
         } else {
             variables = ctx.identifierList().Identifier()
                     .map { visit(it) as Identifier }
-                    .map { VariableDeclaration(TypeName.VAR, it.name, null, visibility = Visibility.Default) }
+                    .map { VariableDeclaration(TypeName.Var, it.name, null, visibility = Visibility.Default) }
         }
 
         val initialValue = visit(ctx.expression()) as Expression

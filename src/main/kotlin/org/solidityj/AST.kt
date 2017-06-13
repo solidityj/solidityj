@@ -166,7 +166,33 @@ class MagicVariableDeclaration(
 ) : Declaration(name)
 
 open class TypeName : ASTNode() {
-    object VAR : TypeName()
+    object Var : TypeName()
+}
+
+class MagicType : ASTNode()
+
+object MagicTypes {
+    // @TODO: these are actually more specific types
+    val Msg = MagicType()
+    val Tx = MagicType()
+    val Now = MagicType()
+    val Suicide = MagicType()
+    val Selfdestruct = MagicType()
+    val Addmod = MagicType()
+    val Mulmod = MagicType()
+    val Sha3 = MagicType()
+    val Keekak256 = MagicType()
+    val Log0 = MagicType()
+    val Log1 = MagicType()
+    val Log2 = MagicType()
+    val Log3 = MagicType()
+    val Log4 = MagicType()
+    val Sha256 = MagicType()
+    val Ecrecover = MagicType()
+    val Ripemd160 = MagicType()
+    val Assert = MagicType()
+    val Require = MagicType()
+    val Revert = MagicType()
 }
 
 class ElementaryTypeName(
@@ -184,20 +210,19 @@ class ElementaryTypeName(
         }
         return str
     }
-
 }
 
 object ElementaryTypes {
 
-    val INT = ElementaryTypeName("int")
-    val UINT = ElementaryTypeName("uint")
-    val BYTES = ElementaryTypeName("bytes")
-    val BYTE = ElementaryTypeName("byte")
-    val STRING = ElementaryTypeName("string")
-    val ADDRESS = ElementaryTypeName("address")
-    val BOOL = ElementaryTypeName("bool")
-    val FIXED = ElementaryTypeName("fixed")
-    val UFIXED = ElementaryTypeName("ufixed")
+    val Int = ElementaryTypeName("int")
+    val Uint = ElementaryTypeName("uint")
+    val Bytes = ElementaryTypeName("bytes")
+    val Byte = ElementaryTypeName("byte")
+    val String = ElementaryTypeName("string")
+    val Address = ElementaryTypeName("address")
+    val Bool = ElementaryTypeName("bool")
+    val Fixed = ElementaryTypeName("fixed")
+    val Ufixed = ElementaryTypeName("ufixed")
 
     fun intMTypeName(m: Int): ElementaryTypeName { return ElementaryTypeName("int", m) }
     fun uintMTypeName(m: Int): ElementaryTypeName { return ElementaryTypeName("uint", m) }
